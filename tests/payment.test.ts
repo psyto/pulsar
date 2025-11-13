@@ -14,6 +14,7 @@ import {
   SystemProgram,
   LAMPORTS_PER_SOL 
 } from '@solana/web3.js';
+import { expect } from 'chai';
 
 describe('pulsar_payment', () => {
   const provider = anchor.AnchorProvider.env();
@@ -28,7 +29,7 @@ describe('pulsar_payment', () => {
   let treasuryTokenAccount: PublicKey;
   let userTokenAccount: PublicKey;
 
-  beforeAll(async () => {
+  before(async () => {
     // Airdrop SOL to accounts
     await provider.connection.requestAirdrop(
       authority.publicKey,
@@ -98,8 +99,8 @@ describe('pulsar_payment', () => {
       .rpc();
 
     const gatewayAccount = await program.account.gateway.fetch(gateway);
-    expect(gatewayAccount.authority.toString()).toBe(authority.publicKey.toString());
-    expect(gatewayAccount.fee.toNumber()).toBe(1000000);
+    expect(gatewayAccount.authority.toString()).to.equal(authority.publicKey.toString());
+    expect(gatewayAccount.fee.toNumber()).to.equal(1000000);
   });
 
   it('Processes a payment', async () => {

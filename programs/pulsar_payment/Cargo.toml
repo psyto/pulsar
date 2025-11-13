@@ -13,10 +13,14 @@ no-entrypoint = []
 no-idl = []
 no-log-ix-name = []
 cpi = ["no-entrypoint"]
+idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
 default = []
 
 [dependencies]
-anchor-lang = "0.30.0"
-anchor-spl = "0.30.0"
-solana-program = "~1.18"
+anchor-lang = "0.31.1"
+anchor-spl = "0.31.1"
+
+# Pin indexmap to version compatible with Solana's bundled Rust 1.79
+[dependencies.indexmap]
+version = "2.0"
 
