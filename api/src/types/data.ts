@@ -81,3 +81,17 @@ export interface TokenMetadata {
   description?: string;
 }
 
+export interface TokenHolder {
+  address: string;
+  balance: string;
+  decimals: number;
+}
+
+export interface TokenDistribution {
+  totalHolders: number;
+  totalSupply: string;
+  topHolders: TokenHolder[];
+  averageBalance: string;
+  concentration: number; // Gini coefficient or similar
+}
+

@@ -1,20 +1,6 @@
 import { Connection, PublicKey } from '@solana/web3.js';
 import { getAccount, getAssociatedTokenAddress, TOKEN_PROGRAM_ID } from '@solana/spl-token';
-import { TokenInfo } from '../types/data';
-
-export interface TokenHolder {
-  address: string;
-  balance: string;
-  decimals: number;
-}
-
-export interface TokenDistribution {
-  totalHolders: number;
-  totalSupply: string;
-  topHolders: TokenHolder[];
-  averageBalance: string;
-  concentration: number; // Gini coefficient or similar
-}
+import { TokenInfo, TokenHolder, TokenDistribution } from '../types/data';
 
 /**
  * Service for querying RWA token accounts and holder information

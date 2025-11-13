@@ -2,6 +2,7 @@ import { Connection } from '@solana/web3.js';
 import { TokenMetadataService } from './tokenMetadata';
 import { SwitchboardService } from './switchboardService';
 import { AccountDataService } from './accountData';
+import { DataAggregator } from './dataAggregator';
 import {
   RwaRiskData,
   LiquidationParamsData,
@@ -43,16 +44,31 @@ export class DataService {
       // 1. Get token metadata from on-chain
       const tokenInfo = await this.tokenMetadata.getTokenInfo(tokenMint);
 
-      // 2. Try to get oracle data from Switchboard
-      let oracleMetrics: RwaRiskMetrics | null = null;
+      // 2. Get account distribution data (optional, for enhancement)
+      let accountData;
       try {
-        oracleMetrics = await this.switchboard.getRwaRiskData(tokenMint, tokenInfo);
+        accountData = await this.accountData.getTokenDistribution(tokenMint, tokenInfo);
       } catch (error) {
-        console.warn(`Could not fetch Switchboard data for ${tokenMint}:`, error);
+        console.warn(`Could not fetch account data for ${tokenMint}:`, error);
       }
 
-      // 3. Use oracle data if available, otherwise use defaults
-      const metrics: RwaRiskMetrics = oracleMetrics || this.getDefaultRwaRiskMetrics(tokenMint);
+      // 3. Try to get oracle data
+      let oracleData: any = null;
+      let oracleSource: 'switchboard' | 'pyth' | 'custom' | 'mock' | null = null;
+      try {
+        oracleData = await this.switchboard.getRwaRiskData(tokenMint, tokenInfo);
+        oracleSource = this.switchboard.getProvider() as any;
+      } catch (error) {
+        console.warn(`Could not fetch oracle data for ${tokenMint}:`, error);
+      }
+
+      // 4. Aggregate data from all sources
+      const metrics = DataAggregator.aggregateRwaRiskData(
+        tokenInfo,
+        oracleData,
+        oracleSource,
+        accountData
+      );
 
       return {
         tokenMint,
@@ -75,17 +91,30 @@ export class DataService {
       // 1. Get token info
       const tokenInfo = await this.tokenMetadata.getTokenInfo(tokenMint);
 
-      // 2. Try to get price data from oracle
+      // 2. Get account distribution data (for risk assessment)
+      let accountData;
+      try {
+        accountData = await this.accountData.getTokenDistribution(tokenMint, tokenInfo);
+      } catch (error) {
+        console.warn(`Could not fetch account data for ${tokenMint}:`, error);
+      }
+
+      // 3. Try to get price data from oracle
       let priceData: PriceData | null = null;
+      let oracleSource: 'switchboard' | 'pyth' | 'custom' | 'mock' | null = null;
       try {
         priceData = await this.switchboard.getPriceData(tokenMint);
+        oracleSource = this.switchboard.getProvider() as any;
       } catch (error) {
         console.warn(`Could not fetch price data for ${tokenMint}:`, error);
       }
 
-      // 3. Calculate liquidation parameters
+      // 4. Aggregate price data
+      const aggregatedPrice = priceData || DataAggregator.aggregatePriceData(null, null);
+
+      // 5. Calculate liquidation parameters
       // TODO: Implement LiquidationCalculator in Phase 4
-      const parameters = this.getDefaultLiquidationParams(tokenInfo, priceData);
+      const parameters = this.getDefaultLiquidationParams(tokenInfo, aggregatedPrice, accountData);
 
       return {
         tokenMint,
@@ -128,14 +157,40 @@ export class DataService {
   /**
    * Get default liquidation parameters (fallback when calculations unavailable)
    */
-  private getDefaultLiquidationParams(tokenInfo: TokenInfo, priceData: PriceData | null) {
-    // Default values - will be replaced with real calculations in Phase 4
+  private getDefaultLiquidationParams(
+    tokenInfo: TokenInfo,
+    priceData: PriceData | null,
+    accountData?: any
+  ) {
+    // Base default values
+    let liquidationThreshold = 0.85;
+    let maxLtv = 0.75;
+    let volatility = 0.12;
+
+    // Adjust based on account data if available
+    if (accountData) {
+      // Higher concentration = lower LTV
+      if (accountData.concentration > 0.8) {
+        maxLtv = 0.65;
+        liquidationThreshold = 0.80;
+      }
+      // More holders = higher LTV
+      if (accountData.totalHolders > 1000) {
+        maxLtv = Math.min(0.85, maxLtv + 0.05);
+      }
+    }
+
+    // Adjust based on price confidence
+    if (priceData && priceData.confidence < 0.8) {
+      volatility += 0.05; // Higher volatility for low confidence
+    }
+
     return {
-      liquidationThreshold: 0.85,
-      maxLtv: 0.75,
+      liquidationThreshold,
+      maxLtv,
       liquidationPenalty: 0.05,
       healthFactor: 1.25,
-      volatility: 0.12,
+      volatility,
       correlation: {
         sol: 0.35,
         usdc: 0.95,
