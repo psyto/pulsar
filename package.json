@@ -1,0 +1,38 @@
+{
+  "name": "pulsar",
+  "version": "0.1.0",
+  "description": "Solana RWA Risk Gateway with x402 Protocol",
+  "private": true,
+  "workspaces": [
+    "api",
+    "client"
+  ],
+  "scripts": {
+    "build": "anchor build",
+    "test": "anchor test",
+    "lint": "anchor fmt",
+    "deploy:local": "anchor deploy",
+    "deploy:devnet": "anchor deploy --provider.cluster devnet",
+    "deploy:mainnet": "anchor deploy --provider.cluster mainnet",
+    "api:dev": "cd api && npm run dev",
+    "api:build": "cd api && npm run build",
+    "client:build": "cd client && npm run build"
+  },
+  "keywords": [
+    "solana",
+    "anchor",
+    "rwa",
+    "x402",
+    "defi",
+    "api-gateway"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@coral-xyz/anchor": "^0.30.0",
+    "@solana/web3.js": "^1.87.6",
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.3"
+  }
+}
+
