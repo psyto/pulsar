@@ -9,6 +9,9 @@ skip-lint = false
 [programs.localnet]
 pulsar_payment = "84zwY58ivSmpGY8gsenAc2c4XpwBUyh1thF9XXx3LhfD"
 
+[programs.devnet]
+pulsar_payment = "84zwY58ivSmpGY8gsenAc2c4XpwBUyh1thF9XXx3LhfD"
+
 [registry]
 url = "https://api.apr.dev"
 

@@ -4,6 +4,32 @@ This blueprint outlines a detailed strategy for an individual entrepreneur to en
 
 The proposed project, **Pulsar**, focuses on building an **AI Data Monetization Gateway** on Solana's high-throughput infrastructure, utilizing the x402 protocol to deliver institutional-grade RWA risk data on a high-frequency, pay-per-call basis.
 
+## Quick Start
+
+### Deploy to Devnet
+
+```bash
+# 1. Check setup
+npm run check:devnet
+
+# 2. Setup devnet environment
+npm run setup:devnet
+
+# 3. Build and deploy
+npm run build
+npm run deploy:devnet
+
+# 4. Configure API
+cd api && cp .env.example .env
+# Edit .env with deployed program ID
+
+# 5. Start services
+npm run api:dev        # Terminal 1
+npm run frontend:dev    # Terminal 2
+```
+
+See [docs/QUICKSTART.md](docs/QUICKSTART.md) for detailed instructions.
+
 ## Section 1: The New Paradigm: Fusion of Capital, Compute, and Data
 
 ### 1.1. Transitioning from TradFi to DeFAI Market Creation
@@ -32,13 +58,13 @@ The DeFAI Gateway selects Solana as its infrastructure to meet the stringent per
 
 High-performance data gateways face strict requirements. Low cost, fast finality, and stability are essential to enable high-frequency payments by AI agents.
 
-*   **Ultra-Low Cost:** Transaction costs must be negligible to make a pay-per-call model (e.g., $0.01 per call) economically viable.[9] Solana's average transaction fee is fixed at approximately $0.00025 , which is extremely low.[10]
-*   **Fast Finality:** Solana offers a **400ms block time** and approximately **12.8-second finality** [11], making it known for fast transactions. This is crucial for delivering financial transaction-level immediacy and stability.
-*   **Institutional Adoption:** Institutional custody platforms like Galaxy Digital's GK8 have extended support for interacting securely with Solana-based DeFi protocols (e.g., Orca, Radium, Jupiter) [12], confirming Solana's recognition as mission-critical financial infrastructure.
+-   **Ultra-Low Cost:** Transaction costs must be negligible to make a pay-per-call model (e.g., $0.01 per call) economically viable.[9] Solana's average transaction fee is fixed at approximately $0.00025 , which is extremely low.[10]
+-   **Fast Finality:** Solana offers a **400ms block time** and approximately **12.8-second finality** [11], making it known for fast transactions. This is crucial for delivering financial transaction-level immediacy and stability.
+-   **Institutional Adoption:** Institutional custody platforms like Galaxy Digital's GK8 have extended support for interacting securely with Solana-based DeFi protocols (e.g., Orca, Radium, Jupiter) [12], confirming Solana's recognition as mission-critical financial infrastructure.
 
 ### 2.2. AI Agent Payments for Solana's Technical Superiority
 
-Solana's architecture offers distinct advantages for micropayments combined with the x402 protocol. Solana's **400ms finality** and **$0.00025 transaction cost**  make micropayments economically viable for AI agents making thousands of API calls.
+Solana's architecture offers distinct advantages for micropayments combined with the x402 protocol. Solana's **400ms finality** and **$0.00025 transaction cost** make micropayments economically viable for AI agents making thousands of API calls.
 
 Furthermore, the Solana ecosystem provides tools like the **Solana Attestation Service (SAS)**, which enables KYC checks and geographic access restrictions without exposing sensitive user data on-chain. This capability is a significant differentiator for ensuring compliance while deploying services globally, particularly in the highly diverse regulatory landscape of the APAC region.
 
@@ -60,32 +86,32 @@ The primary target customers are B2B segments: RWA protocols (like Kamino ), ins
 
 Single data points are not enough; the product must focus on advanced data points required by institutional investors for risk exposure management. **This is where my financial experience guides the product's differentiation, by prioritizing non-generic data points**.[6, 7]
 
-*   **RWA Legal and Compliance Status:** Providing information on the underlying legal structure of the tokenized assets and the rights conferred to token holders. **This relies directly on my legal and compliance structuring expertise.**[2, 4]
-*   **Centralized Counterparty Risk Indicators:** RWA-based financial products depend on the solvency and performance of issuers or managers ; the gateway provides related data to mitigate insolvency or default risk.
-*   **Oracle Integrity Consensus:** Providing endpoints to verify data reliability (quality and security) of the RWA valuation feed through multiple node validation.
+-   **RWA Legal and Compliance Status:** Providing information on the underlying legal structure of the tokenized assets and the rights conferred to token holders. **This relies directly on my legal and compliance structuring expertise.**[2, 4]
+-   **Centralized Counterparty Risk Indicators:** RWA-based financial products depend on the solvency and performance of issuers or managers ; the gateway provides related data to mitigate insolvency or default risk.
+-   **Oracle Integrity Consensus:** Providing endpoints to verify data reliability (quality and security) of the RWA valuation feed through multiple node validation.
 
 ### 3.3. Technical MVP Pillars and Development Plan (Solo Execution)
 
 MVP development is narrowly focused on establishing the x402 payment rail and implementing a single, high-value data endpoint to minimize time-to-market and resource expenditure.[15, 14]
 
-| **Feature Set** | **Description and Business Value** | **Technology Stack Implication** | **Estimated Development (Weeks)** |
-|---|---|---|---|
-| **Core Payment Rail (Must-Have)** | Implementation of the x402 protocol via HTTP 402 status code. Enables API key-less, pay-per-call access using USDC. | Rust/Anchor Smart Contract, Solana Pay SDKs | 4–6 |
-| **Data Endpoint (Core Value)** | A low-latency API endpoint providing a single prioritized RWA risk metric (e.g., liquidation modeling parameters ). | Rust/Anchor, High-performance Oracle Integration (Switchboard Surge ) | 3–5 |
-| **Wallet-Based Authentication** | Access verification via cryptographic signature from a wallet, replacing traditional API keys.[8] | Phantom/Base Wallet integration , Signature Verification Logic | 2–3 |
-| **Web Frontend (Customer Demo)** | Interactive web interface for demonstrating RWA risk data access, payment quotes, and wallet integration. Supports mock data for offline demos. | React, TypeScript, Vite, Tailwind CSS, Solana Wallet Adapter | 2–3 |
+| **Feature Set**                   | **Description and Business Value**                                                                                                              | **Technology Stack Implication**                                      | **Estimated Development (Weeks)** |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- | --------------------------------- |
+| **Core Payment Rail (Must-Have)** | Implementation of the x402 protocol via HTTP 402 status code. Enables API key-less, pay-per-call access using USDC.                             | Rust/Anchor Smart Contract, Solana Pay SDKs                           | 4–6                               |
+| **Data Endpoint (Core Value)**    | A low-latency API endpoint providing a single prioritized RWA risk metric (e.g., liquidation modeling parameters ).                             | Rust/Anchor, High-performance Oracle Integration (Switchboard Surge ) | 3–5                               |
+| **Wallet-Based Authentication**   | Access verification via cryptographic signature from a wallet, replacing traditional API keys.[8]                                               | Phantom/Base Wallet integration , Signature Verification Logic        | 2–3                               |
+| **Web Frontend (Customer Demo)**  | Interactive web interface for demonstrating RWA risk data access, payment quotes, and wallet integration. Supports mock data for offline demos. | React, TypeScript, Vite, Tailwind CSS, Solana Wallet Adapter          | 2–3                               |
 
-Limiting to these core functionalities, the total development time for the basic MVP is estimated at approximately **2–4 months**  (costing roughly **$7,000–$15,000** ).
+Limiting to these core functionalities, the total development time for the basic MVP is estimated at approximately **2–4 months** (costing roughly **$7,000–$15,000** ).
 
 ### 3.4. Web Frontend Implementation
 
 A modern React-based web frontend has been implemented to demonstrate the Pulsar RWA Risk Gateway to customers and stakeholders. The frontend provides:
 
-- **Wallet Integration**: Seamless connection with Phantom, Solflare, and other Solana wallets
-- **Payment Quotes**: Real-time pricing display for different data endpoints
-- **RWA Risk Visualization**: Interactive display of legal compliance, counterparty risk, and oracle integrity metrics
-- **Liquidation Parameters**: Visualization of liquidation modeling parameters
-- **Mock Data Support**: Automatic fallback to mock data when API server is unavailable, enabling offline customer demonstrations
+-   **Wallet Integration**: Seamless connection with Phantom, Solflare, and other Solana wallets
+-   **Payment Quotes**: Real-time pricing display for different data endpoints
+-   **RWA Risk Visualization**: Interactive display of legal compliance, counterparty risk, and oracle integrity metrics
+-   **Liquidation Parameters**: Visualization of liquidation modeling parameters
+-   **Mock Data Support**: Automatic fallback to mock data when API server is unavailable, enabling offline customer demonstrations
 
 The frontend is built with React 18, TypeScript, Vite, and Tailwind CSS, providing a fast, responsive user experience. It supports both production API integration and standalone demo mode with mock data, making it ideal for customer presentations and stakeholder demonstrations.
 
@@ -101,22 +127,22 @@ The challenges of operating as a solo entrepreneur are mitigated by utilizing Ge
 
 ### 4.1. Accelerating Development with GenAI
 
-*   **GenAI for Development Support:** GenAI tools like ChatGPT and Perplexity can dramatically reduce the burden of initial MVP phases, including market research, requirements definition, and generating user stories.[17, 1]
-*   **Leveraging Existing APIs:** Instead of training complex AI models from scratch, utilizing existing powerful AI APIs allows the founder to focus resources on validating the core use case—specialized financial data analysis—rather than on model development.[14]
+-   **GenAI for Development Support:** GenAI tools like ChatGPT and Perplexity can dramatically reduce the burden of initial MVP phases, including market research, requirements definition, and generating user stories.[17, 1]
+-   **Leveraging Existing APIs:** Instead of training complex AI models from scratch, utilizing existing powerful AI APIs allows the founder to focus resources on validating the core use case—specialized financial data analysis—rather than on model development.[14]
 
 ### 4.2. Securing Non-Dilutive Capital (Grants and Hackathons)
 
 Web3 grants provide crucial non-dilutive funding, meaning the founder retains full equity.
 
-*   **Solana Foundation Grants:** The Solana Foundation offers milestone-based funding for projects that generate public goods for the network. Microgrants, ranging from **$2k to $10k**, are available for early-stage builders.
-*   **Hackathon Strategy:** Solana Hackathons (e.g., Hyperdrive [18]) are crucial for validating the MVP and securing initial non-dilutive funding, with prize pools often reaching **$30,000 USDC**.
+-   **Solana Foundation Grants:** The Solana Foundation offers milestone-based funding for projects that generate public goods for the network. Microgrants, ranging from **$2k to $10k**, are available for early-stage builders.
+-   **Hackathon Strategy:** Solana Hackathons (e.g., Hyperdrive [18]) are crucial for validating the MVP and securing initial non-dilutive funding, with prize pools often reaching **$30,000 USDC**.
 
 ### 4.3. B2B Traction Strategy and Building Trust
 
 In the early stages, focus should be on acquiring **loyal B2B customers** (DeFi protocols, institutional investors) who provide high value and consistent usage.[19]
 
-*   **Targeting High-Value Customers:** Focus on major Solana DeFi protocols involved in RWA integration, such as Kamino and Drift.[13, 20]
-*   **Building Institutional Trust:** Trust is paramount when dealing with institutional clients.[21] This requires offering collaborative **pilot programs or Proof-of-Concept (PoC) trials** to demonstrate the solution's effectiveness.[21]
+-   **Targeting High-Value Customers:** Focus on major Solana DeFi protocols involved in RWA integration, such as Kamino and Drift.[13, 20]
+-   **Building Institutional Trust:** Trust is paramount when dealing with institutional clients.[21] This requires offering collaborative **pilot programs or Proof-of-Concept (PoC) trials** to demonstrate the solution's effectiveness.[21]
 
 ## Conclusion and Recommended Actions
 

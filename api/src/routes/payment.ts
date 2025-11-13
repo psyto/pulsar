@@ -4,7 +4,7 @@ import { getAssociatedTokenAddress } from '@solana/spl-token';
 
 const router = Router();
 const connection = new Connection(
-  process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com',
+  process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com',
   'confirmed'
 );
 

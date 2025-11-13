@@ -14,8 +14,12 @@ import { clusterApiUrl } from "@solana/web3.js";
 import "@solana/wallet-adapter-react-ui/styles.css";
 
 export const WalletProvider: FC<{ children: ReactNode }> = ({ children }) => {
-    const network = WalletAdapterNetwork.Devnet;
-    const endpoint = useMemo(() => clusterApiUrl(network), [network]);
+    // Use devnet for development, can be changed via env variable
+    const network = (import.meta.env.VITE_SOLANA_NETWORK as WalletAdapterNetwork) || WalletAdapterNetwork.Devnet;
+    const endpoint = useMemo(() => {
+        const customRpc = import.meta.env.VITE_SOLANA_RPC_URL;
+        return customRpc || clusterApiUrl(network);
+    }, [network]);
 
     const wallets = useMemo(
         () => [new PhantomWalletAdapter(), new SolflareWalletAdapter()],
