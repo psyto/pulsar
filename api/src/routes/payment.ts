@@ -1,12 +1,14 @@
 import { Router, Request, Response } from 'express';
-import { Connection, PublicKey, Transaction } from '@solana/web3.js';
-import { getAssociatedTokenAddress } from '@solana/spl-token';
+import { Connection, PublicKey } from '@solana/web3.js';
+import { PaymentService } from '../services/paymentService';
 
 const router = Router();
 const connection = new Connection(
   process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com',
   'confirmed'
 );
+
+const paymentService = new PaymentService(connection);
 
 /**
  * GET /api/v1/payment/quote
@@ -52,41 +54,45 @@ router.get('/quote', async (req: Request, res: Response) => {
 
 /**
  * POST /api/v1/payment/verify
- * Verify payment transaction
+ * Verify payment transaction using PaymentService
  */
 router.post('/verify', async (req: Request, res: Response) => {
   try {
-    const { signature, nonce } = req.body;
+    const { signature, nonce, expectedAmount } = req.body;
 
     if (!signature) {
       return res.status(400).json({ error: 'Missing transaction signature' });
     }
 
-    // Verify transaction on-chain
-    const tx = await connection.getTransaction(signature, {
-      commitment: 'confirmed',
-    });
+    // Verify payment using PaymentService
+    const verification = await paymentService.verifyPayment(
+      signature,
+      expectedAmount ? parseFloat(expectedAmount) : undefined,
+      nonce ? parseInt(nonce, 10) : undefined
+    );
 
-    if (!tx) {
-      return res.status(404).json({ error: 'Transaction not found' });
-    }
-
-    if (!tx.meta?.err) {
-      res.json({
-        verified: true,
-        signature,
-        nonce,
-        timestamp: new Date().toISOString(),
-      });
-    } else {
-      res.status(400).json({
+    if (!verification.verified) {
+      return res.status(402).json({
         verified: false,
-        error: 'Transaction failed',
+        error: verification.error || 'Payment verification failed',
+        signature,
       });
     }
+
+    res.json({
+      verified: true,
+      signature: verification.signature,
+      user: verification.user.toBase58(),
+      amount: verification.amount / Math.pow(10, 6), // Convert to USDC (6 decimals)
+      nonce: verification.nonce,
+      timestamp: new Date(verification.timestamp * 1000).toISOString(),
+    });
   } catch (error) {
     console.error('Payment verification error:', error);
-    res.status(500).json({ error: 'Failed to verify payment' });
+    res.status(500).json({
+      error: 'Failed to verify payment',
+      message: error instanceof Error ? error.message : 'Unknown error',
+    });
   }
 });
 
