@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { AuthenticatedRequest } from '../middleware/auth';
+import { DataService } from '../services/dataService';
 
 const router = Router();
 
@@ -14,11 +15,27 @@ router.get('/rwa-risk/:tokenMint', async (req: Request, res: Response) => {
     
     // Allow demo mode without authentication (for frontend demo)
     const isDemoMode = !authReq.wallet && req.headers['x-demo-mode'] === 'true';
+    const requestedBy = authReq.wallet?.toBase58() || (isDemoMode ? 'demo-mode' : 'unknown');
 
-    // TODO: Integrate with Switchboard Surge oracle
-    // TODO: Fetch real RWA risk data from data sources
-    
-    // Mock data for MVP
+    // Get data service from app locals (initialized in index.ts)
+    const dataService = req.app.locals.dataService as DataService | undefined;
+    const dataServiceInitialized = req.app.locals.dataServiceInitialized as boolean;
+
+    // Try to use real data service if available
+    if (dataService && dataServiceInitialized) {
+      try {
+        const riskData = await dataService.getRwaRiskData(tokenMint, requestedBy);
+        return res.json(riskData);
+      } catch (error) {
+        console.error('Error fetching real RWA risk data:', error);
+        // Fall through to mock data if real data fails and fallback is enabled
+        if (process.env.FALLBACK_TO_MOCK !== 'true') {
+          throw error;
+        }
+      }
+    }
+
+    // Fallback to mock data (for MVP or when service not initialized)
     const riskData = {
       tokenMint,
       timestamp: new Date().toISOString(),
@@ -42,7 +59,7 @@ router.get('/rwa-risk/:tokenMint', async (req: Request, res: Response) => {
           lastUpdate: new Date().toISOString(),
         },
       },
-      requestedBy: authReq.wallet?.toBase58() || (isDemoMode ? 'demo-mode' : 'unknown'),
+      requestedBy,
     };
 
     res.json(riskData);
@@ -63,10 +80,27 @@ router.get('/liquidation-params/:tokenMint', async (req: Request, res: Response)
     
     // Allow demo mode without authentication (for frontend demo)
     const isDemoMode = !authReq.wallet && req.headers['x-demo-mode'] === 'true';
+    const requestedBy = authReq.wallet?.toBase58() || (isDemoMode ? 'demo-mode' : 'unknown');
 
-    // TODO: Integrate with real liquidation modeling data
-    
-    // Mock data for MVP
+    // Get data service from app locals (initialized in index.ts)
+    const dataService = req.app.locals.dataService as DataService | undefined;
+    const dataServiceInitialized = req.app.locals.dataServiceInitialized as boolean;
+
+    // Try to use real data service if available
+    if (dataService && dataServiceInitialized) {
+      try {
+        const liquidationParams = await dataService.getLiquidationParams(tokenMint, requestedBy);
+        return res.json(liquidationParams);
+      } catch (error) {
+        console.error('Error fetching real liquidation parameters:', error);
+        // Fall through to mock data if real data fails and fallback is enabled
+        if (process.env.FALLBACK_TO_MOCK !== 'true') {
+          throw error;
+        }
+      }
+    }
+
+    // Fallback to mock data (for MVP or when service not initialized)
     const liquidationParams = {
       tokenMint,
       timestamp: new Date().toISOString(),
@@ -81,7 +115,7 @@ router.get('/liquidation-params/:tokenMint', async (req: Request, res: Response)
           usdc: 0.95,
         },
       },
-      requestedBy: authReq.wallet?.toBase58() || (isDemoMode ? 'demo-mode' : 'unknown'),
+      requestedBy,
     };
 
     res.json(liquidationParams);

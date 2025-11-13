@@ -1,0 +1,157 @@
+import { Connection } from '@solana/web3.js';
+import { TokenMetadataService } from './tokenMetadata';
+import { SwitchboardService } from './switchboardService';
+import {
+  RwaRiskData,
+  LiquidationParamsData,
+  TokenInfo,
+  RwaRiskMetrics,
+  PriceData,
+} from '../types/data';
+
+/**
+ * Main data service orchestrator
+ * Coordinates between different data sources (on-chain, oracle, calculations)
+ */
+export class DataService {
+  private tokenMetadata: TokenMetadataService;
+  private switchboard: SwitchboardService;
+  private connection: Connection;
+
+  constructor(connection: Connection) {
+    this.connection = connection;
+    this.tokenMetadata = new TokenMetadataService(connection);
+    this.switchboard = new SwitchboardService(connection);
+  }
+
+  /**
+   * Initialize all services
+   */
+  async initialize(): Promise<void> {
+    await this.switchboard.initialize();
+  }
+
+  /**
+   * Get RWA risk data for a token
+   * Combines on-chain token info with oracle risk metrics
+   */
+  async getRwaRiskData(tokenMint: string, requestedBy: string): Promise<RwaRiskData> {
+    try {
+      // 1. Get token metadata from on-chain
+      const tokenInfo = await this.tokenMetadata.getTokenInfo(tokenMint);
+
+      // 2. Try to get oracle data from Switchboard
+      let oracleMetrics: RwaRiskMetrics | null = null;
+      try {
+        oracleMetrics = await this.switchboard.getRwaRiskData(tokenMint, tokenInfo);
+      } catch (error) {
+        console.warn(`Could not fetch Switchboard data for ${tokenMint}:`, error);
+      }
+
+      // 3. Use oracle data if available, otherwise use defaults
+      const metrics: RwaRiskMetrics = oracleMetrics || this.getDefaultRwaRiskMetrics(tokenMint);
+
+      return {
+        tokenMint,
+        timestamp: new Date().toISOString(),
+        metrics,
+        requestedBy,
+      };
+    } catch (error) {
+      console.error(`Error in getRwaRiskData for ${tokenMint}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get liquidation parameters for a token
+   * Combines price data with risk calculations
+   */
+  async getLiquidationParams(tokenMint: string, requestedBy: string): Promise<LiquidationParamsData> {
+    try {
+      // 1. Get token info
+      const tokenInfo = await this.tokenMetadata.getTokenInfo(tokenMint);
+
+      // 2. Try to get price data from oracle
+      let priceData: PriceData | null = null;
+      try {
+        priceData = await this.switchboard.getPriceData(tokenMint);
+      } catch (error) {
+        console.warn(`Could not fetch price data for ${tokenMint}:`, error);
+      }
+
+      // 3. Calculate liquidation parameters
+      // TODO: Implement LiquidationCalculator in Phase 4
+      const parameters = this.getDefaultLiquidationParams(tokenInfo, priceData);
+
+      return {
+        tokenMint,
+        timestamp: new Date().toISOString(),
+        parameters,
+        requestedBy,
+      };
+    } catch (error) {
+      console.error(`Error in getLiquidationParams for ${tokenMint}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get default RWA risk metrics (fallback when oracle data unavailable)
+   */
+  private getDefaultRwaRiskMetrics(tokenMint: string): RwaRiskMetrics {
+    return {
+      legalCompliance: {
+        status: 'unknown',
+        jurisdiction: 'unknown',
+        structure: 'unknown',
+        lastVerified: new Date().toISOString(),
+      },
+      counterpartyRisk: {
+        issuerRating: 'N/A',
+        defaultProbability: 0,
+        solvencyScore: 0,
+        lastUpdated: new Date().toISOString(),
+      },
+      oracleIntegrity: {
+        consensusNodes: 0,
+        dataReliability: 0,
+        latency: 'unknown',
+        lastUpdate: new Date().toISOString(),
+      },
+    };
+  }
+
+  /**
+   * Get default liquidation parameters (fallback when calculations unavailable)
+   */
+  private getDefaultLiquidationParams(tokenInfo: TokenInfo, priceData: PriceData | null) {
+    // Default values - will be replaced with real calculations in Phase 4
+    return {
+      liquidationThreshold: 0.85,
+      maxLtv: 0.75,
+      liquidationPenalty: 0.05,
+      healthFactor: 1.25,
+      volatility: 0.12,
+      correlation: {
+        sol: 0.35,
+        usdc: 0.95,
+      },
+    };
+  }
+
+  /**
+   * Get token information only
+   */
+  async getTokenInfo(tokenMint: string): Promise<TokenInfo> {
+    return this.tokenMetadata.getTokenInfo(tokenMint);
+  }
+
+  /**
+   * Clear caches
+   */
+  clearCache(tokenMint?: string): void {
+    this.tokenMetadata.clearCache(tokenMint);
+  }
+}
+

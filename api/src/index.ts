@@ -3,14 +3,41 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
+import { Connection } from '@solana/web3.js';
 import { paymentRouter } from './routes/payment';
 import { dataRouter } from './routes/data';
 import { authMiddleware } from './middleware/auth';
+import { DataService } from './services/dataService';
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Initialize Solana connection
+const connection = new Connection(
+  process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com',
+  'confirmed'
+);
+
+// Initialize data service
+const dataService = new DataService(connection);
+let dataServiceInitialized = false;
+
+// Initialize data service asynchronously
+dataService.initialize()
+  .then(() => {
+    dataServiceInitialized = true;
+    console.log('✅ Data service initialized');
+  })
+  .catch((error) => {
+    console.error('⚠️  Data service initialization failed:', error);
+    console.log('📝 Continuing with mock data fallback');
+  });
+
+// Make data service available to routes
+app.locals.dataService = dataService;
+app.locals.dataServiceInitialized = dataServiceInitialized;
 
 // Security middleware
 app.use(helmet());
@@ -33,7 +60,11 @@ app.use(express.urlencoded({ extended: true }));
 
 // Health check
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    dataService: dataServiceInitialized ? 'initialized' : 'not initialized',
+  });
 });
 
 // API routes
@@ -78,8 +109,8 @@ if (process.env.NODE_ENV !== 'test' && require.main === module) {
   app.listen(PORT, () => {
     console.log(`🚀 Pulsar API Server running on port ${PORT}`);
     console.log(`📡 x402 Protocol enabled`);
+    console.log(`🔗 Solana RPC: ${process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com'}`);
   });
 }
 
 export default app;
-
