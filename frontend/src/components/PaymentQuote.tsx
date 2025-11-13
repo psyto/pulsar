@@ -9,7 +9,7 @@ interface PaymentQuoteProps {
 }
 
 export function PaymentQuote({ endpoint, onPaymentComplete }: PaymentQuoteProps) {
-    const { publicKey, signTransaction, connected } = useWallet();
+    const { publicKey, sendTransaction, connected } = useWallet();
     const { connection } = useConnection();
     const [quote, setQuote] = useState<PaymentQuote | null>(null);
     const [loading, setLoading] = useState(true);
@@ -30,7 +30,7 @@ export function PaymentQuote({ endpoint, onPaymentComplete }: PaymentQuoteProps)
     }, [endpoint]);
 
     const handlePayment = async () => {
-        if (!quote || !publicKey || !signTransaction || !connected) {
+        if (!quote || !publicKey || !sendTransaction || !connected) {
             setError("Please connect your wallet");
             return;
         }
@@ -44,21 +44,59 @@ export function PaymentQuote({ endpoint, onPaymentComplete }: PaymentQuoteProps)
             const amount = parseFloat(quote.price.amount);
             const nonce = paymentService.generateNonce();
 
-            // Create transaction
-            const transaction = await paymentService.createPaymentTransaction(
-                publicKey,
-                amount,
-                nonce,
-                quote.recipient
-            );
+            // Try to create payment transaction
+            // If token account doesn't exist, we'll get a special error
+            let transaction;
+            try {
+                transaction = await paymentService.createPaymentTransaction(
+                    publicKey,
+                    amount,
+                    nonce,
+                    quote.recipient
+                );
+            } catch (error: any) {
+                // Check if error is about missing token account
+                if (error.message && error.message.includes('TOKEN_ACCOUNT_MISSING')) {
+                    const accountAddress = error.message.split(':')[1] || paymentService.getUserTokenAccountAddress(publicKey);
+                    const usdcMint = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+                    throw new Error(
+                        `Your USDC token account does not exist.\n\n` +
+                        `To fix this:\n` +
+                        `1. Receive some USDC tokens to your wallet (this will automatically create the account), OR\n` +
+                        `2. Use a Solana tool like Jupiter or Raydium to create the account\n\n` +
+                        `Your token account address: ${accountAddress}\n` +
+                        `USDC Mint: ${usdcMint}`
+                    );
+                } else {
+                    throw error;
+                }
+            }
+
+            // Prepare transaction (ensure blockhash, fee payer, etc.)
+            transaction = await paymentService.prepareTransaction(transaction, publicKey);
+
+            console.log("Transaction prepared:", {
+                feePayer: transaction.feePayer?.toBase58(),
+                recentBlockhash: transaction.recentBlockhash,
+                instructions: transaction.instructions.length,
+            });
 
             setPaymentStatus("Please approve the transaction in your wallet...");
 
-            // Sign and submit
-            const signature = await paymentService.submitPayment(
-                transaction,
-                signTransaction
-            );
+            // Use wallet adapter's sendTransaction method
+            // This handles signing and sending in one step
+            const signature = await sendTransaction(transaction, connection, {
+                skipPreflight: false,
+            });
+
+            console.log("Transaction sent, signature:", signature);
+
+            setPaymentStatus("Waiting for confirmation...");
+
+            // Wait for confirmation
+            await connection.confirmTransaction(signature, 'confirmed');
+
+            console.log("Transaction confirmed");
 
             setPaymentStatus("Verifying payment...");
 
@@ -93,7 +131,9 @@ export function PaymentQuote({ endpoint, onPaymentComplete }: PaymentQuoteProps)
                 setPaymentStatus(null);
             }, 3000);
         } catch (err: any) {
-            setError(err.message || "Payment failed");
+            console.error("Payment error:", err);
+            const errorMessage = err.message || err.toString() || "Payment failed";
+            setError(errorMessage);
             setPaymentStatus(null);
         } finally {
             setPaying(false);
@@ -163,7 +203,41 @@ export function PaymentQuote({ endpoint, onPaymentComplete }: PaymentQuoteProps)
                         )}
                         {error && (
                             <div className="bg-red-900/20 border border-red-700 rounded p-3">
-                                <div className="text-red-400 text-sm">{error}</div>
+                                <div className="text-red-400 text-sm whitespace-pre-line">{error}</div>
+                                {error.includes("USDC token account does not exist") && (
+                                    <div className="mt-3 space-y-2 p-3 bg-yellow-900/20 border border-yellow-700 rounded">
+                                        <div className="text-yellow-400 text-xs font-semibold mb-2">
+                                            💡 Quick Fix: Receive USDC Tokens
+                                        </div>
+                                        <div className="space-y-2 text-xs">
+                                            <div className="text-gray-300">
+                                                <strong>Step 1:</strong> Get SOL
+                                            </div>
+                                            <a
+                                                href={`https://faucet.solana.com/?address=${publicKey?.toBase58()}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="block text-blue-400 hover:text-blue-300 underline"
+                                            >
+                                                → Get SOL from Faucet
+                                            </a>
+                                            <div className="text-gray-300 mt-2">
+                                                <strong>Step 2:</strong> Swap SOL for USDC
+                                            </div>
+                                            <a
+                                                href="https://jup.ag/swap"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="block text-blue-400 hover:text-blue-300 underline"
+                                            >
+                                                → Swap on Jupiter (make sure you're on Devnet!)
+                                            </a>
+                                            <div className="text-gray-400 mt-2 text-xs">
+                                                Receiving USDC automatically creates your token account.
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
                         <button

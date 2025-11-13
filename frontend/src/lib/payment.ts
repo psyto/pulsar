@@ -2,10 +2,9 @@ import {
     Connection,
     PublicKey,
     Transaction,
-    sendAndConfirmTransaction,
 } from "@solana/web3.js";
 import {
-    getAssociatedTokenAddress,
+    getAssociatedTokenAddressSync,
     createTransferInstruction,
     TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
@@ -35,20 +34,53 @@ export class PaymentService {
         _nonce: number,
         treasuryWallet: string
     ): Promise<Transaction> {
-        const transaction = new Transaction();
-
-        // Get user's USDC token account
-        const userTokenAccount = await getAssociatedTokenAddress(
+        // Get user's USDC token account (using sync version for consistency)
+        const userTokenAccount = getAssociatedTokenAddressSync(
             this.usdcMint,
             wallet
+            // Use default program IDs
         );
 
         // Get treasury USDC token account
         const treasuryPubkey = new PublicKey(treasuryWallet);
-        const treasuryTokenAccount = await getAssociatedTokenAddress(
+        const treasuryTokenAccount = getAssociatedTokenAddressSync(
             this.usdcMint,
             treasuryPubkey
+            // Use default program IDs
         );
+
+        // Check if user's token account exists
+        const userAccountInfo = await this.connection.getAccountInfo(userTokenAccount);
+        const userAccountExists = userAccountInfo !== null;
+
+        // Check if treasury token account exists
+        const treasuryAccountInfo = await this.connection.getAccountInfo(treasuryTokenAccount);
+        const treasuryAccountExists = treasuryAccountInfo !== null;
+
+        // If user's token account doesn't exist, we'll need to create it separately
+        // We can't create it in the same transaction due to program ID issues
+        if (!userAccountExists) {
+            throw new Error(
+                `TOKEN_ACCOUNT_MISSING:${userTokenAccount.toBase58()}` +
+                `:Your USDC token account does not exist. Please create it first.`
+            );
+        }
+
+        if (!treasuryAccountExists) {
+            throw new Error(
+                `Treasury USDC token account does not exist. Please contact support. ` +
+                `Account address: ${treasuryTokenAccount.toBase58()}`
+            );
+        }
+
+        // Fetch recent blockhash
+        const { blockhash, lastValidBlockHeight } = await this.connection.getLatestBlockhash('confirmed');
+
+        // Create transaction with blockhash
+        const transaction = new Transaction();
+        transaction.feePayer = wallet;
+        transaction.recentBlockhash = blockhash;
+        transaction.lastValidBlockHeight = lastValidBlockHeight;
 
         // Convert amount to lamports (USDC has 6 decimals)
         const amountLamports = Math.floor(amount * Math.pow(10, 6));
@@ -74,27 +106,23 @@ export class PaymentService {
 
 
     /**
-     * Submit payment transaction to Solana network
+     * Prepare transaction for sending (ensures it has all required fields)
+     * Note: The actual sending is done by the wallet adapter's sendTransaction method
      */
-    async submitPayment(
-        transaction: Transaction,
-        signTransaction: (tx: Transaction) => Promise<Transaction>
-    ): Promise<string> {
-        // Sign transaction
-        const signedTransaction = await signTransaction(transaction);
+    async prepareTransaction(transaction: Transaction, wallet: PublicKey): Promise<Transaction> {
+        // Ensure transaction has blockhash (refresh if needed)
+        if (!transaction.recentBlockhash) {
+            const { blockhash, lastValidBlockHeight } = await this.connection.getLatestBlockhash('confirmed');
+            transaction.recentBlockhash = blockhash;
+            transaction.lastValidBlockHeight = lastValidBlockHeight;
+        }
 
-        // Send and confirm transaction
-        const signature = await sendAndConfirmTransaction(
-            this.connection,
-            signedTransaction,
-            [],
-            {
-                commitment: "confirmed",
-                skipPreflight: false,
-            }
-        );
+        // Ensure fee payer is set
+        if (!transaction.feePayer) {
+            transaction.feePayer = wallet;
+        }
 
-        return signature;
+        return transaction;
     }
 
     /**
@@ -139,6 +167,18 @@ export class PaymentService {
     generateNonce(): number {
         // Generate nonce from timestamp and random number
         return Date.now() + Math.floor(Math.random() * 1000);
+    }
+
+    /**
+     * Get the user's associated token account address
+     * Useful for displaying to the user if they need to create it manually
+     */
+    getUserTokenAccountAddress(wallet: PublicKey): string {
+        const userTokenAccount = getAssociatedTokenAddressSync(
+            this.usdcMint,
+            wallet
+        );
+        return userTokenAccount.toBase58();
     }
 }
 
