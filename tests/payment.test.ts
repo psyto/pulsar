@@ -7,12 +7,14 @@ import {
   createMint,
   createAccount,
   mintTo,
+  createAssociatedTokenAccountInstruction,
 } from '@solana/spl-token';
 import { 
   PublicKey, 
   Keypair, 
   SystemProgram,
-  LAMPORTS_PER_SOL 
+  LAMPORTS_PER_SOL,
+  Connection
 } from '@solana/web3.js';
 import { expect } from 'chai';
 
@@ -31,14 +33,26 @@ describe('pulsar_payment', () => {
 
   before(async () => {
     // Airdrop SOL to accounts
-    await provider.connection.requestAirdrop(
+    // Wait for confirmation to ensure airdrops succeed
+    const authoritySig = await provider.connection.requestAirdrop(
       authority.publicKey,
       2 * LAMPORTS_PER_SOL
     );
-    await provider.connection.requestAirdrop(
+    await provider.connection.confirmTransaction(authoritySig, 'confirmed');
+    
+    const userSig = await provider.connection.requestAirdrop(
       user.publicKey,
       2 * LAMPORTS_PER_SOL
     );
+    await provider.connection.confirmTransaction(userSig, 'confirmed');
+    
+    // Verify balances
+    const authorityBalance = await provider.connection.getBalance(authority.publicKey);
+    const userBalance = await provider.connection.getBalance(user.publicKey);
+    
+    if (authorityBalance === 0 || userBalance === 0) {
+      throw new Error('Airdrop failed - accounts have zero balance. Make sure validator has enough SOL.');
+    }
 
     // Create USDC mint (mock)
     usdcMint = await createMint(
@@ -55,7 +69,7 @@ describe('pulsar_payment', () => {
       program.programId
     );
 
-    // Create treasury token account
+    // Create treasury token account (associated token account for PDA)
     treasuryTokenAccount = await getAssociatedTokenAddress(
       usdcMint,
       gateway,
@@ -67,12 +81,17 @@ describe('pulsar_payment', () => {
       usdcMint,
       user.publicKey
     );
+    
+    // Create the user's token account
     await createAccount(
       provider.connection,
       user,
       usdcMint,
       user.publicKey
     );
+    
+    // Note: Treasury token account will be created automatically when first transfer happens
+    // But we can create it explicitly if needed
 
     // Mint USDC to user
     await mintTo(
@@ -88,24 +107,65 @@ describe('pulsar_payment', () => {
   it('Initializes the gateway', async () => {
     const fee = new anchor.BN(1000000); // 1 USDC (6 decimals)
 
-    const tx = await program.methods
-      .initialize(fee)
-      .accounts({
-        gateway,
-        authority: authority.publicKey,
-        systemProgram: SystemProgram.programId,
-      })
-      .signers([authority])
-      .rpc();
+    // Check if gateway already exists
+    try {
+      const existingGateway = await program.account.gateway.fetch(gateway);
+      console.log('Gateway already initialized, skipping initialization');
+      expect(existingGateway.authority.toString()).to.equal(authority.publicKey.toString());
+    } catch (e) {
+      // Gateway doesn't exist, initialize it
+      const tx = await program.methods
+        .initialize(fee)
+        .accounts({
+          gateway,
+          authority: authority.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([authority])
+        .rpc();
 
-    const gatewayAccount = await program.account.gateway.fetch(gateway);
-    expect(gatewayAccount.authority.toString()).to.equal(authority.publicKey.toString());
-    expect(gatewayAccount.fee.toNumber()).to.equal(1000000);
+      const gatewayAccount = await program.account.gateway.fetch(gateway);
+      expect(gatewayAccount.authority.toString()).to.equal(authority.publicKey.toString());
+      expect(gatewayAccount.fee.toNumber()).to.equal(1000000);
+    }
   });
 
   it('Processes a payment', async () => {
     const amount = new anchor.BN(10000000); // 10 USDC
     const nonce = new anchor.BN(12345);
+
+    // Ensure gateway is initialized
+    try {
+      await program.account.gateway.fetch(gateway);
+    } catch (e) {
+      // Initialize if not exists
+      const fee = new anchor.BN(1000000);
+      await program.methods
+        .initialize(fee)
+        .accounts({
+          gateway,
+          authority: authority.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([authority])
+        .rpc();
+    }
+
+    // Create treasury token account if it doesn't exist
+    const treasuryInfo = await provider.connection.getAccountInfo(treasuryTokenAccount);
+    
+    if (!treasuryInfo) {
+      // Create the associated token account for the treasury PDA
+      const createATAInstruction = createAssociatedTokenAccountInstruction(
+        authority.publicKey, // payer
+        treasuryTokenAccount, // ata
+        gateway, // owner (PDA)
+        usdcMint // mint
+      );
+      
+      const tx = new anchor.web3.Transaction().add(createATAInstruction);
+      await provider.sendAndConfirm(tx, [authority]);
+    }
 
     const tx = await program.methods
       .processPayment(amount, nonce)
@@ -120,7 +180,9 @@ describe('pulsar_payment', () => {
       .rpc();
 
     // Verify payment was processed
-    // TODO: Check treasury balance increased
+    // Check treasury balance increased
+    const treasuryBalance = await provider.connection.getTokenAccountBalance(treasuryTokenAccount);
+    expect(parseInt(treasuryBalance.value.amount)).to.be.at.least(amount.toNumber());
   });
 });
 

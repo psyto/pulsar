@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-declare_id!("AYR12uFA9XcW2XHyqRYfJLD5nhKoNDqHPk8Yrp3uVMf8");
+declare_id!("84zwY58ivSmpGY8gsenAc2c4XpwBUyh1thF9XXx3LhfD");
 
 #[program]
 pub mod pulsar_payment {
