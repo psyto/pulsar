@@ -36,6 +36,27 @@ pulsar/
 │   │   └── index.ts             # PulsarClient class
 │   └── tests/
 │
+├── frontend/                    # Web Frontend (React/TypeScript)
+│   ├── package.json
+│   ├── vite.config.ts           # Vite configuration
+│   ├── tailwind.config.js       # Tailwind CSS config
+│   ├── tsconfig.json            # TypeScript config
+│   ├── index.html               # HTML entry point
+│   ├── src/
+│   │   ├── main.tsx             # React entry point
+│   │   ├── App.tsx              # Main app component
+│   │   ├── index.css            # Global styles
+│   │   ├── components/
+│   │   │   ├── WalletButton.tsx      # Wallet connection UI
+│   │   │   ├── PaymentQuote.tsx      # Payment pricing display
+│   │   │   ├── RwaRiskViewer.tsx     # RWA risk metrics viewer
+│   │   │   └── LiquidationParams.tsx  # Liquidation parameters viewer
+│   │   ├── contexts/
+│   │   │   └── WalletContext.tsx     # Solana wallet provider
+│   │   └── lib/
+│   │       └── api.ts                # API client with mock support
+│   └── README.md
+│
 ├── tests/                       # Integration tests
 │   └── payment.test.ts          # Anchor tests
 │
@@ -97,12 +118,36 @@ pulsar/
 - API client wrapper
 - Type-safe interfaces
 
+### 4. Web Frontend (`frontend/`)
+
+**Purpose**: Interactive web interface for customer demonstrations
+
+**Key Features**:
+- Solana wallet integration (Phantom, Solflare)
+- Payment quote display
+- RWA risk data visualization
+- Liquidation parameters display
+- Mock data support for offline demos
+
+**Components**:
+- `WalletButton` - Wallet connection UI
+- `PaymentQuote` - Payment pricing display
+- `RwaRiskViewer` - RWA risk metrics viewer
+- `LiquidationParams` - Liquidation parameters viewer
+
+**Tech Stack**:
+- React 18 with TypeScript
+- Vite for fast development
+- Tailwind CSS for styling
+- Solana Wallet Adapter for wallet integration
+
 ## Technology Stack
 
 - **Blockchain**: Solana
 - **Smart Contracts**: Anchor (Rust)
 - **API Server**: Express.js (TypeScript)
 - **Client SDK**: TypeScript
+- **Web Frontend**: React 18, TypeScript, Vite, Tailwind CSS
 - **Payment**: USDC (SPL Token)
 - **Protocol**: x402 (HTTP 402)
 
@@ -134,7 +179,14 @@ pulsar/
    npm run build
    ```
 
-4. **Deployment**:
+4. **Frontend Development**:
+   ```bash
+   cd frontend
+   npm run dev
+   # Access at http://localhost:5173
+   ```
+
+5. **Deployment**:
    ```bash
    ./scripts/deploy.sh devnet
    ```

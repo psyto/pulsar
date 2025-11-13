@@ -15,7 +15,7 @@ const PORT = process.env.PORT || 3000;
 // Security middleware
 app.use(helmet());
 app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || '*',
+  origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:5173', 'http://localhost:3000', '*'],
   credentials: true,
 }));
 
@@ -38,7 +38,14 @@ app.get('/health', (req, res) => {
 
 // API routes
 app.use('/api/v1/payment', paymentRouter);
-app.use('/api/v1/data', authMiddleware, dataRouter);
+// Data routes - allow demo mode for frontend (skip auth if x-demo-mode header is set)
+app.use('/api/v1/data', (req, res, next) => {
+  // Skip auth for demo mode (frontend can set x-demo-mode header)
+  if (req.headers['x-demo-mode'] === 'true') {
+    return next();
+  }
+  return authMiddleware(req, res, next);
+}, dataRouter);
 
 // x402 Protocol: HTTP 402 Payment Required handler
 app.use((req, res, next) => {

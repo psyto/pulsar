@@ -3,10 +3,11 @@
     "version": "0.1.0",
     "description": "Solana RWA Risk Gateway with x402 Protocol",
     "private": true,
-    "workspaces": [
-        "api",
-        "client"
-    ],
+  "workspaces": [
+    "api",
+    "client",
+    "frontend"
+  ],
     "scripts": {
         "build": "./scripts/build.sh",
     "test": "./scripts/test.sh",
@@ -15,10 +16,12 @@
         "deploy:local": "anchor deploy",
         "deploy:devnet": "anchor deploy --provider.cluster devnet",
         "deploy:mainnet": "anchor deploy --provider.cluster mainnet",
-        "api:dev": "cd api && npm run dev",
-        "api:build": "cd api && npm run build",
-        "api:test": "cd api && npm test",
-        "client:build": "cd client && npm run build"
+    "api:dev": "cd api && npm run dev",
+    "api:build": "cd api && npm run build",
+    "api:test": "cd api && npm test",
+    "client:build": "cd client && npm run build",
+    "frontend:dev": "cd frontend && npm run dev",
+    "frontend:build": "cd frontend && npm run build"
     },
     "keywords": [
         "solana",

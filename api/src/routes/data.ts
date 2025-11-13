@@ -11,6 +11,9 @@ router.get('/rwa-risk/:tokenMint', async (req: Request, res: Response) => {
   try {
     const { tokenMint } = req.params;
     const authReq = req as AuthenticatedRequest;
+    
+    // Allow demo mode without authentication (for frontend demo)
+    const isDemoMode = !authReq.wallet && req.headers['x-demo-mode'] === 'true';
 
     // TODO: Integrate with Switchboard Surge oracle
     // TODO: Fetch real RWA risk data from data sources
@@ -39,7 +42,7 @@ router.get('/rwa-risk/:tokenMint', async (req: Request, res: Response) => {
           lastUpdate: new Date().toISOString(),
         },
       },
-      requestedBy: authReq.wallet?.toBase58() || 'unknown',
+      requestedBy: authReq.wallet?.toBase58() || (isDemoMode ? 'demo-mode' : 'unknown'),
     };
 
     res.json(riskData);
@@ -57,6 +60,9 @@ router.get('/liquidation-params/:tokenMint', async (req: Request, res: Response)
   try {
     const { tokenMint } = req.params;
     const authReq = req as AuthenticatedRequest;
+    
+    // Allow demo mode without authentication (for frontend demo)
+    const isDemoMode = !authReq.wallet && req.headers['x-demo-mode'] === 'true';
 
     // TODO: Integrate with real liquidation modeling data
     
@@ -75,7 +81,7 @@ router.get('/liquidation-params/:tokenMint', async (req: Request, res: Response)
           usdc: 0.95,
         },
       },
-      requestedBy: authReq.wallet?.toBase58() || 'unknown',
+      requestedBy: authReq.wallet?.toBase58() || (isDemoMode ? 'demo-mode' : 'unknown'),
     };
 
     res.json(liquidationParams);

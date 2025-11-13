@@ -15,6 +15,10 @@ dist/
 .env
 .env.local
 
+# Frontend
+frontend/dist/
+frontend/.vite/
+
 # IDLs
 target/idl/
 target/types/

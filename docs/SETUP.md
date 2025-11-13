@@ -57,7 +57,22 @@ cp .env.example .env
 npm run dev
 ```
 
-### 4. Deploy to Localnet
+### 4. Start Web Frontend
+
+```bash
+# From project root
+npm run frontend:dev
+
+# Or from frontend directory
+cd frontend
+npm run dev
+```
+
+The frontend will be available at `http://localhost:5173`
+
+**Note**: The frontend works standalone with mock data if the API server is not running, making it perfect for customer demonstrations.
+
+### 5. Deploy to Localnet
 
 ```bash
 # Start local validator
@@ -92,6 +107,12 @@ pulsar/
 ├── client/                 # Client SDK
 │   └── src/
 │       └── index.ts        # PulsarClient
+├── frontend/               # Web Frontend
+│   ├── src/
+│   │   ├── components/     # React components
+│   │   ├── contexts/        # React contexts
+│   │   └── lib/            # API client
+│   └── index.html          # HTML entry
 ├── tests/                  # Integration tests
 └── docs/                   # Documentation
 ```
@@ -100,7 +121,22 @@ pulsar/
 
 1. Deploy program to devnet
 2. Configure API server
-3. Test x402 payment flow
-4. Integrate Switchboard Surge oracle
-5. Add real RWA risk data sources
+3. Start frontend for customer demos
+4. Test x402 payment flow
+5. Integrate Switchboard Surge oracle
+6. Add real RWA risk data sources
+
+## Quick Start for Customer Demos
+
+To quickly demonstrate the frontend to customers:
+
+```bash
+# Terminal 1: Start API server (optional - frontend works with mock data)
+npm run api:dev
+
+# Terminal 2: Start frontend
+npm run frontend:dev
+```
+
+Open `http://localhost:5173` in your browser. The frontend will automatically use mock data if the API server is not running.
 
