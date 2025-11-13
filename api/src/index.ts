@@ -73,10 +73,13 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 Pulsar API Server running on port ${PORT}`);
-  console.log(`📡 x402 Protocol enabled`);
-});
+// Only start server if not in test environment
+if (process.env.NODE_ENV !== 'test' && require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`🚀 Pulsar API Server running on port ${PORT}`);
+    console.log(`📡 x402 Protocol enabled`);
+  });
+}
 
 export default app;
 
