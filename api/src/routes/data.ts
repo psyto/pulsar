@@ -1,8 +1,12 @@
 import { Router, Request, Response } from 'express';
 import { AuthenticatedRequest } from '../middleware/auth';
+import { walletRateLimit } from '../middleware/rateLimit';
 import { DataService } from '../services/dataService';
 
 const router = Router();
+
+// Apply wallet rate limiting to all data routes
+router.use(walletRateLimit);
 
 /**
  * GET /api/v1/data/rwa-risk/:tokenMint
@@ -28,10 +32,26 @@ router.get('/rwa-risk/:tokenMint', async (req: Request, res: Response) => {
         return res.json(riskData);
       } catch (error) {
         console.error('Error fetching real RWA risk data:', error);
-        // Fall through to mock data if real data fails and fallback is enabled
-        if (process.env.FALLBACK_TO_MOCK !== 'true') {
-          throw error;
+        
+        // Check if it's an RPC error (network issue)
+        const isRpcError = error instanceof Error && (
+          error.message.includes('fetch') ||
+          error.message.includes('network') ||
+          error.message.includes('timeout') ||
+          error.message.includes('ECONNREFUSED')
+        );
+
+        // Fall through to mock data if fallback is enabled and it's an RPC error
+        if (process.env.FALLBACK_TO_MOCK === 'true' && isRpcError) {
+          console.warn('RPC error detected, falling back to mock data');
+        } else if (process.env.FALLBACK_TO_MOCK !== 'true') {
+          // If fallback is disabled, return error
+          return res.status(500).json({
+            error: 'Failed to fetch RWA risk data',
+            message: error instanceof Error ? error.message : 'Unknown error',
+          });
         }
+        // Otherwise fall through to mock data
       }
     }
 
@@ -93,10 +113,26 @@ router.get('/liquidation-params/:tokenMint', async (req: Request, res: Response)
         return res.json(liquidationParams);
       } catch (error) {
         console.error('Error fetching real liquidation parameters:', error);
-        // Fall through to mock data if real data fails and fallback is enabled
-        if (process.env.FALLBACK_TO_MOCK !== 'true') {
-          throw error;
+        
+        // Check if it's an RPC error (network issue)
+        const isRpcError = error instanceof Error && (
+          error.message.includes('fetch') ||
+          error.message.includes('network') ||
+          error.message.includes('timeout') ||
+          error.message.includes('ECONNREFUSED')
+        );
+
+        // Fall through to mock data if fallback is enabled and it's an RPC error
+        if (process.env.FALLBACK_TO_MOCK === 'true' && isRpcError) {
+          console.warn('RPC error detected, falling back to mock data');
+        } else if (process.env.FALLBACK_TO_MOCK !== 'true') {
+          // If fallback is disabled, return error
+          return res.status(500).json({
+            error: 'Failed to fetch liquidation parameters',
+            message: error instanceof Error ? error.message : 'Unknown error',
+          });
         }
+        // Otherwise fall through to mock data
       }
     }
 

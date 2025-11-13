@@ -1,6 +1,7 @@
 import { Connection, PublicKey } from '@solana/web3.js';
 import { getMint, Mint } from '@solana/spl-token';
 import { TokenInfo, TokenMetadata } from '../types/data';
+import { MetaplexHelper } from './metaplexHelper';
 
 /**
  * Service for fetching on-chain token metadata and information
@@ -65,12 +66,14 @@ export class TokenMetadataService {
 
   /**
    * Get token metadata from Metaplex Token Metadata Program
-   * This is a placeholder - full implementation would query the Metaplex program
    */
   private async getTokenMetadata(mintPubkey: PublicKey): Promise<TokenMetadata | null> {
-    // TODO: Implement Metaplex Token Metadata Program query
-    // For now, return null (will be implemented in Phase 2)
-    return null;
+    try {
+      return await MetaplexHelper.fetchTokenMetadata(this.connection, mintPubkey);
+    } catch (error) {
+      console.warn(`Error in getTokenMetadata for ${mintPubkey.toBase58()}:`, error);
+      return null;
+    }
   }
 
   /**

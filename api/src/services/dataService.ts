@@ -1,6 +1,7 @@
 import { Connection } from '@solana/web3.js';
 import { TokenMetadataService } from './tokenMetadata';
 import { SwitchboardService } from './switchboardService';
+import { AccountDataService } from './accountData';
 import {
   RwaRiskData,
   LiquidationParamsData,
@@ -16,12 +17,14 @@ import {
 export class DataService {
   private tokenMetadata: TokenMetadataService;
   private switchboard: SwitchboardService;
+  private accountData: AccountDataService;
   private connection: Connection;
 
   constructor(connection: Connection) {
     this.connection = connection;
     this.tokenMetadata = new TokenMetadataService(connection);
     this.switchboard = new SwitchboardService(connection);
+    this.accountData = new AccountDataService(connection);
   }
 
   /**
@@ -148,10 +151,18 @@ export class DataService {
   }
 
   /**
+   * Get token distribution data
+   */
+  async getTokenDistribution(tokenMint: string, tokenInfo?: TokenInfo) {
+    return this.accountData.getTokenDistribution(tokenMint, tokenInfo);
+  }
+
+  /**
    * Clear caches
    */
   clearCache(tokenMint?: string): void {
     this.tokenMetadata.clearCache(tokenMint);
+    this.accountData.clearCache(tokenMint);
   }
 }
 
