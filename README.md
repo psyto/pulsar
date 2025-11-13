@@ -30,6 +30,10 @@ npm run frontend:dev    # Terminal 2
 
 See [docs/QUICKSTART.md](docs/QUICKSTART.md) for detailed instructions.
 
+### Real Data Integration
+
+Currently using mock data for MVP demonstration. See [docs/INTEGRATION_PLAN.md](docs/INTEGRATION_PLAN.md) for the complete plan to integrate real Solana data sources (Switchboard Surge, on-chain token data, liquidation calculations).
+
 ## Section 1: The New Paradigm: Fusion of Capital, Compute, and Data
 
 ### 1.1. Transitioning from TradFi to DeFAI Market Creation

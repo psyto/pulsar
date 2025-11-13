@@ -18,6 +18,7 @@
         "deploy:mainnet": "./scripts/deploy.sh mainnet",
         "setup:devnet": "./scripts/setup-devnet.sh",
         "check:devnet": "./scripts/check-devnet.sh",
+        "demo": "./scripts/demo.sh",
     "api:dev": "cd api && npm run dev",
     "api:build": "cd api && npm run build",
     "api:test": "cd api && npm test",
