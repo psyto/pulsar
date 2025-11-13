@@ -3,6 +3,8 @@ import { TokenMetadataService } from './tokenMetadata';
 import { SwitchboardService } from './switchboardService';
 import { AccountDataService } from './accountData';
 import { DataAggregator } from './dataAggregator';
+import { LiquidationCalculator } from './liquidationCalculator';
+import { RiskModel } from './riskModel';
 import {
   RwaRiskData,
   LiquidationParamsData,
@@ -19,6 +21,8 @@ export class DataService {
   private tokenMetadata: TokenMetadataService;
   private switchboard: SwitchboardService;
   private accountData: AccountDataService;
+  private liquidationCalculator: LiquidationCalculator;
+  private riskModel: RiskModel;
   private connection: Connection;
 
   constructor(connection: Connection) {
@@ -26,6 +30,8 @@ export class DataService {
     this.tokenMetadata = new TokenMetadataService(connection);
     this.switchboard = new SwitchboardService(connection);
     this.accountData = new AccountDataService(connection);
+    this.liquidationCalculator = new LiquidationCalculator();
+    this.riskModel = new RiskModel();
   }
 
   /**
@@ -112,9 +118,23 @@ export class DataService {
       // 4. Aggregate price data
       const aggregatedPrice = priceData || DataAggregator.aggregatePriceData(null, null);
 
-      // 5. Calculate liquidation parameters
-      // TODO: Implement LiquidationCalculator in Phase 4
-      const parameters = this.getDefaultLiquidationParams(tokenInfo, aggregatedPrice, accountData);
+      // 5. Get RWA risk metrics for calculation
+      let riskMetrics: RwaRiskMetrics;
+      try {
+        const riskData = await this.getRwaRiskData(tokenMint, requestedBy);
+        riskMetrics = riskData.metrics;
+      } catch (error) {
+        console.warn(`Could not fetch risk metrics for ${tokenMint}, using defaults:`, error);
+        riskMetrics = this.getDefaultRwaRiskMetrics(tokenMint);
+      }
+
+      // 6. Calculate liquidation parameters using LiquidationCalculator
+      const parameters = this.liquidationCalculator.calculateLiquidationParams(
+        tokenInfo,
+        aggregatedPrice,
+        riskMetrics,
+        accountData
+      );
 
       return {
         tokenMint,
@@ -155,47 +175,46 @@ export class DataService {
   }
 
   /**
-   * Get default liquidation parameters (fallback when calculations unavailable)
+   * Get risk score and rating for a token
    */
-  private getDefaultLiquidationParams(
-    tokenInfo: TokenInfo,
-    priceData: PriceData | null,
-    accountData?: any
-  ) {
-    // Base default values
-    let liquidationThreshold = 0.85;
-    let maxLtv = 0.75;
-    let volatility = 0.12;
-
-    // Adjust based on account data if available
-    if (accountData) {
-      // Higher concentration = lower LTV
-      if (accountData.concentration > 0.8) {
-        maxLtv = 0.65;
-        liquidationThreshold = 0.80;
+  async getRiskScore(tokenMint: string): Promise<{
+    score: number;
+    rating: string;
+    legalCompliance: any;
+    counterpartyRisk: any;
+  }> {
+    try {
+      // Get all necessary data
+      const tokenInfo = await this.tokenMetadata.getTokenInfo(tokenMint);
+      let accountData;
+      try {
+        accountData = await this.accountData.getTokenDistribution(tokenMint, tokenInfo);
+      } catch (error) {
+        console.warn(`Could not fetch account data for ${tokenMint}:`, error);
       }
-      // More holders = higher LTV
-      if (accountData.totalHolders > 1000) {
-        maxLtv = Math.min(0.85, maxLtv + 0.05);
-      }
-    }
 
-    // Adjust based on price confidence
-    if (priceData && priceData.confidence < 0.8) {
-      volatility += 0.05; // Higher volatility for low confidence
-    }
+      // Get risk metrics
+      const riskData = await this.getRwaRiskData(tokenMint, 'system');
+      const riskMetrics = riskData.metrics;
 
-    return {
-      liquidationThreshold,
-      maxLtv,
-      liquidationPenalty: 0.05,
-      healthFactor: 1.25,
-      volatility,
-      correlation: {
-        sol: 0.35,
-        usdc: 0.95,
-      },
-    };
+      // Calculate risk score
+      const score = this.riskModel.calculateRiskScore(riskMetrics, tokenInfo, accountData);
+      const rating = this.riskModel.getRiskRating(score);
+
+      // Get detailed assessments
+      const legalCompliance = this.riskModel.assessLegalCompliance(riskMetrics.legalCompliance);
+      const counterpartyRisk = this.riskModel.assessCounterpartyRisk(riskMetrics.counterpartyRisk);
+
+      return {
+        score,
+        rating,
+        legalCompliance,
+        counterpartyRisk,
+      };
+    } catch (error) {
+      console.error(`Error calculating risk score for ${tokenMint}:`, error);
+      throw error;
+    }
   }
 
   /**
