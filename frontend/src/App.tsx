@@ -9,6 +9,12 @@ function App() {
         "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
     );
     const [endpoint, setEndpoint] = useState("rwa-risk");
+    const [refreshKey, setRefreshKey] = useState(0);
+
+    const handlePaymentComplete = () => {
+        // Trigger refresh of data components
+        setRefreshKey((prev) => prev + 1);
+    };
 
     return (
         <div className="min-h-screen bg-gray-900 text-white">
@@ -75,10 +81,13 @@ function App() {
                                 </select>
                             </div>
 
-                            <PaymentQuote endpoint={endpoint} />
+                            <PaymentQuote
+                                endpoint={endpoint}
+                                onPaymentComplete={handlePaymentComplete}
+                            />
                         </div>
 
-                        <div>
+                        <div key={refreshKey}>
                             {endpoint === "rwa-risk" ? (
                                 <RwaRiskViewer tokenMint={tokenMint} />
                             ) : (

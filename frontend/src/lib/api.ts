@@ -1,6 +1,17 @@
 import axios from "axios";
+import { PublicKey } from "@solana/web3.js";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+
+// Payment state management
+interface PaymentState {
+    signature?: string;
+    nonce?: number;
+    amount?: number;
+    timestamp?: number;
+}
+
+let paymentState: PaymentState | null = null;
 
 export interface PaymentQuote {
     endpoint: string;
@@ -57,8 +68,29 @@ export interface LiquidationParams {
     requestedBy: string;
 }
 
-// Mock API client - works with mock data from backend
+// API client with real payment flow support
 export const api = {
+    /**
+     * Set payment state (called after successful payment)
+     */
+    setPaymentState(state: PaymentState | null) {
+        paymentState = state;
+    },
+
+    /**
+     * Get current payment state
+     */
+    getPaymentState(): PaymentState | null {
+        return paymentState;
+    },
+
+    /**
+     * Clear payment state
+     */
+    clearPaymentState() {
+        paymentState = null;
+    },
+
     async getPaymentQuote(
         endpoint: string = "rwa-risk"
     ): Promise<PaymentQuote> {
@@ -87,23 +119,66 @@ export const api = {
         }
     },
 
-    async getRwaRiskData(
-        tokenMint: string,
-        mockWallet?: string
-    ): Promise<RwaRiskData> {
+    /**
+     * Verify payment transaction
+     */
+    async verifyPayment(signature: string, nonce?: number, expectedAmount?: number): Promise<{
+        verified: boolean;
+        error?: string;
+        user?: string;
+        amount?: number;
+    }> {
         try {
-            // Try real API first (will work with mock data from backend)
-            // Use demo mode for frontend (no auth required)
-            const response = await axios.get(
-                `${API_URL}/api/v1/data/rwa-risk/${tokenMint}`,
+            const response = await axios.post(
+                `${API_URL}/api/v1/payment/verify`,
                 {
-                    headers: {
-                        "x-demo-mode": "true",
-                    },
+                    signature,
+                    nonce,
+                    expectedAmount,
                 }
             );
             return response.data;
-        } catch (error) {
+        } catch (error: any) {
+            return {
+                verified: false,
+                error: error.response?.data?.error || error.message || "Payment verification failed",
+            };
+        }
+    },
+
+    async getRwaRiskData(
+        tokenMint: string,
+        wallet?: PublicKey | string,
+        usePayment: boolean = true
+    ): Promise<RwaRiskData> {
+        try {
+            const headers: Record<string, string> = {};
+
+            // Use payment if available and not in demo mode
+            if (usePayment && paymentState?.signature) {
+                headers["x-payment-signature"] = paymentState.signature;
+                if (paymentState.nonce) {
+                    headers["x-payment-nonce"] = paymentState.nonce.toString();
+                }
+                if (paymentState.amount) {
+                    headers["x-expected-amount"] = paymentState.amount.toString();
+                }
+            } else {
+                // Fallback to demo mode
+                headers["x-demo-mode"] = "true";
+            }
+
+            const response = await axios.get(
+                `${API_URL}/api/v1/data/rwa-risk/${tokenMint}`,
+                { headers }
+            );
+            return response.data;
+        } catch (error: any) {
+            // If payment required error, throw it
+            if (error.response?.status === 402) {
+                throw new Error("Payment required");
+            }
+
             // Fallback mock data
             console.warn("API not available, using mock data");
             return {
@@ -129,27 +204,48 @@ export const api = {
                         lastUpdate: new Date().toISOString(),
                     },
                 },
-                requestedBy: mockWallet || "demo-wallet",
+                requestedBy: wallet
+                    ? typeof wallet === "string"
+                        ? wallet
+                        : wallet.toBase58()
+                    : "demo-wallet",
             };
         }
     },
 
     async getLiquidationParams(
         tokenMint: string,
-        mockWallet?: string
+        wallet?: PublicKey | string,
+        usePayment: boolean = true
     ): Promise<LiquidationParams> {
         try {
-            // Use demo mode for frontend (no auth required)
+            const headers: Record<string, string> = {};
+
+            // Use payment if available and not in demo mode
+            if (usePayment && paymentState?.signature) {
+                headers["x-payment-signature"] = paymentState.signature;
+                if (paymentState.nonce) {
+                    headers["x-payment-nonce"] = paymentState.nonce.toString();
+                }
+                if (paymentState.amount) {
+                    headers["x-expected-amount"] = paymentState.amount.toString();
+                }
+            } else {
+                // Fallback to demo mode
+                headers["x-demo-mode"] = "true";
+            }
+
             const response = await axios.get(
                 `${API_URL}/api/v1/data/liquidation-params/${tokenMint}`,
-                {
-                    headers: {
-                        "x-demo-mode": "true",
-                    },
-                }
+                { headers }
             );
             return response.data;
-        } catch (error) {
+        } catch (error: any) {
+            // If payment required error, throw it
+            if (error.response?.status === 402) {
+                throw new Error("Payment required");
+            }
+
             // Fallback mock data
             console.warn("API not available, using mock data");
             return {
@@ -166,7 +262,11 @@ export const api = {
                         usdc: 0.95,
                     },
                 },
-                requestedBy: mockWallet || "demo-wallet",
+                requestedBy: wallet
+                    ? typeof wallet === "string"
+                        ? wallet
+                        : wallet.toBase58()
+                    : "demo-wallet",
             };
         }
     },

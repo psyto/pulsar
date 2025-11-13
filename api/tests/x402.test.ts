@@ -6,14 +6,14 @@ describe('x402 Protocol Implementation', () => {
 
   describe('HTTP 402 Payment Required', () => {
     it('should return 402 for data endpoints without payment signature', async () => {
-      // Note: This test may not trigger 402 if demo mode middleware runs first
-      // The actual 402 handler is after the demo mode check
+      // Request without any authentication headers
       const response = await request(app)
         .get(`/api/v1/data/rwa-risk/${testTokenMint}`)
         // No headers at all
-        .expect(401); // Will get 401 from auth middleware first
+        .expect(402); // Payment Required
 
-      expect(response.body).toHaveProperty('error');
+      expect(response.body).toHaveProperty('error', 'Payment Required');
+      expect(response.body).toHaveProperty('payment');
     });
 
     it('should include payment details in response structure', async () => {

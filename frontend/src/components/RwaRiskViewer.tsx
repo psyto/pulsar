@@ -11,18 +11,29 @@ export function RwaRiskViewer({ tokenMint }: RwaRiskViewerProps) {
     const [data, setData] = useState<RwaRiskData | null>(null);
     const [loading, setLoading] = useState(false);
 
+    const [error, setError] = useState<string | null>(null);
+    const [paymentRequired, setPaymentRequired] = useState(false);
+
     const fetchData = async () => {
         if (!tokenMint) return;
 
         setLoading(true);
+        setError(null);
+        setPaymentRequired(false);
         try {
             const riskData = await api.getRwaRiskData(
                 tokenMint,
-                publicKey?.toBase58()
+                publicKey || undefined,
+                true // use payment
             );
             setData(riskData);
-        } catch (error) {
-            console.error("Failed to fetch RWA risk data:", error);
+        } catch (err: any) {
+            console.error("Failed to fetch RWA risk data:", err);
+            if (err.message === "Payment required") {
+                setPaymentRequired(true);
+            } else {
+                setError(err.message || "Failed to load risk data");
+            }
         } finally {
             setLoading(false);
         }
@@ -46,6 +57,32 @@ export function RwaRiskViewer({ tokenMint }: RwaRiskViewerProps) {
         return (
             <div className="text-center py-8 text-gray-400">
                 Loading risk data...
+            </div>
+        );
+    }
+
+    if (paymentRequired) {
+        return (
+            <div className="text-center py-8">
+                <div className="bg-yellow-900/20 border border-yellow-700 rounded-lg p-6 max-w-md mx-auto">
+                    <div className="text-yellow-400 font-semibold mb-2">
+                        Payment Required
+                    </div>
+                    <div className="text-gray-400 text-sm">
+                        Please complete payment to view risk data
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="text-center py-8">
+                <div className="bg-red-900/20 border border-red-700 rounded-lg p-6 max-w-md mx-auto">
+                    <div className="text-red-400 font-semibold mb-2">Error</div>
+                    <div className="text-gray-400 text-sm">{error}</div>
+                </div>
             </div>
         );
     }

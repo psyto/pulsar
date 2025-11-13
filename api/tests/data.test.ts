@@ -38,7 +38,8 @@ describe('Data API Endpoints', () => {
     it('should return RWA risk data with valid authentication', async () => {
       const keypair = Keypair.generate();
       const wallet = keypair.publicKey;
-      const message = `GET /api/v1/data/rwa-risk/${testTokenMint} ${Date.now()}`;
+      const timestamp = Date.now();
+      const message = `GET /api/v1/data/rwa-risk/${testTokenMint} ${timestamp}`;
       const messageBytes = new TextEncoder().encode(message);
       const signature = nacl.sign.detached(messageBytes, keypair.secretKey);
       const signatureBase64 = Buffer.from(signature).toString('base64');
@@ -47,20 +48,20 @@ describe('Data API Endpoints', () => {
         .get(`/api/v1/data/rwa-risk/${testTokenMint}`)
         .set('x-wallet-address', wallet.toBase58())
         .set('x-message', message)
-        .set('x-timestamp', Date.now().toString())
-        .set('x-payment-signature', signatureBase64)
+        .set('x-timestamp', timestamp.toString())
+        .set('x-wallet-signature', signatureBase64) // Use wallet signature for auth
         .expect(200);
 
       expect(response.body).toHaveProperty('tokenMint', testTokenMint);
       expect(response.body).toHaveProperty('requestedBy', wallet.toBase58());
     });
 
-    it('should return 401 without authentication or demo mode', async () => {
+    it('should return 402 without authentication or demo mode', async () => {
       const response = await request(app)
         .get(`/api/v1/data/rwa-risk/${testTokenMint}`)
-        .expect(401);
+        .expect(402); // Payment Required
 
-      expect(response.body).toHaveProperty('error');
+      expect(response.body).toHaveProperty('error', 'Payment Required');
     });
 
     it('should handle different token mint addresses', async () => {
@@ -101,7 +102,8 @@ describe('Data API Endpoints', () => {
     it('should return liquidation parameters with valid authentication', async () => {
       const keypair = Keypair.generate();
       const wallet = keypair.publicKey;
-      const message = `GET /api/v1/data/liquidation-params/${testTokenMint} ${Date.now()}`;
+      const timestamp = Date.now();
+      const message = `GET /api/v1/data/liquidation-params/${testTokenMint} ${timestamp}`;
       const messageBytes = new TextEncoder().encode(message);
       const signature = nacl.sign.detached(messageBytes, keypair.secretKey);
       const signatureBase64 = Buffer.from(signature).toString('base64');
@@ -110,20 +112,20 @@ describe('Data API Endpoints', () => {
         .get(`/api/v1/data/liquidation-params/${testTokenMint}`)
         .set('x-wallet-address', wallet.toBase58())
         .set('x-message', message)
-        .set('x-timestamp', Date.now().toString())
-        .set('x-payment-signature', signatureBase64)
+        .set('x-timestamp', timestamp.toString())
+        .set('x-wallet-signature', signatureBase64) // Use wallet signature for auth
         .expect(200);
 
       expect(response.body).toHaveProperty('tokenMint', testTokenMint);
       expect(response.body).toHaveProperty('requestedBy', wallet.toBase58());
     });
 
-    it('should return 401 without authentication or demo mode', async () => {
+    it('should return 402 without authentication or demo mode', async () => {
       const response = await request(app)
         .get(`/api/v1/data/liquidation-params/${testTokenMint}`)
-        .expect(401);
+        .expect(402); // Payment Required
 
-      expect(response.body).toHaveProperty('error');
+      expect(response.body).toHaveProperty('error', 'Payment Required');
     });
   });
 });

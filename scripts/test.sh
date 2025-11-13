@@ -14,6 +14,8 @@ export ANCHOR_WALLET="$HOME/.config/solana/id.json"
 # Check if validator is already running
 if lsof -ti:8899 > /dev/null 2>&1; then
     echo "✅ Using existing validator on port 8899"
+    echo "⚠️  Note: Gateway may already be initialized from previous test run"
+    echo "   Tests will handle existing gateway gracefully"
     export ANCHOR_PROVIDER_URL="http://localhost:8899"
     export SOLANA_URL="http://localhost:8899"
     

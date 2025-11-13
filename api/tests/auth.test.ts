@@ -13,10 +13,9 @@ describe('Authentication Middleware', () => {
         .set('x-wallet-address', Keypair.generate().publicKey.toBase58())
         .set('x-message', 'test message')
         .set('x-timestamp', Date.now().toString())
-        .expect(401);
+        .expect(402); // Payment Required (no payment or wallet signature)
 
-      expect(response.body).toHaveProperty('error', 'Unauthorized');
-      expect(response.body).toHaveProperty('message', 'Missing required authentication headers');
+      expect(response.body).toHaveProperty('error', 'Payment Required');
     });
 
     it('should reject request without wallet address', async () => {
@@ -26,9 +25,11 @@ describe('Authentication Middleware', () => {
       const signature = nacl.sign.detached(messageBytes, keypair.secretKey);
       const signatureBase64 = Buffer.from(signature).toString('base64');
 
+      // x-payment-signature is for on-chain payments, will fail verification
+      // Use x-wallet-signature for wallet signature auth
       const response = await request(app)
         .get(`/api/v1/data/rwa-risk/${testTokenMint}`)
-        .set('x-payment-signature', signatureBase64)
+        .set('x-wallet-signature', signatureBase64)
         .set('x-message', message)
         .set('x-timestamp', Date.now().toString())
         .expect(401);
@@ -50,7 +51,7 @@ describe('Authentication Middleware', () => {
         .set('x-wallet-address', wallet.toBase58())
         .set('x-message', message) // Different message than signed
         .set('x-timestamp', Date.now().toString())
-        .set('x-payment-signature', signatureBase64)
+        .set('x-wallet-signature', signatureBase64) // Use wallet signature, not payment signature
         .expect(401);
 
       expect(response.body).toHaveProperty('error', 'Unauthorized');
@@ -73,7 +74,7 @@ describe('Authentication Middleware', () => {
         .set('x-wallet-address', wallet.toBase58())
         .set('x-message', message)
         .set('x-timestamp', expiredTimestamp.toString())
-        .set('x-payment-signature', signatureBase64)
+        .set('x-wallet-signature', signatureBase64) // Use wallet signature
         .expect(401);
 
       expect(response.body).toHaveProperty('error', 'Unauthorized');
@@ -83,7 +84,8 @@ describe('Authentication Middleware', () => {
     it('should accept request with valid signature and recent timestamp', async () => {
       const keypair = Keypair.generate();
       const wallet = keypair.publicKey;
-      const message = `GET /api/v1/data/rwa-risk/${testTokenMint} ${Date.now()}`;
+      const timestamp = Date.now();
+      const message = `GET /api/v1/data/rwa-risk/${testTokenMint} ${timestamp}`;
       const messageBytes = new TextEncoder().encode(message);
       const signature = nacl.sign.detached(messageBytes, keypair.secretKey);
       const signatureBase64 = Buffer.from(signature).toString('base64');
@@ -92,8 +94,8 @@ describe('Authentication Middleware', () => {
         .get(`/api/v1/data/rwa-risk/${testTokenMint}`)
         .set('x-wallet-address', wallet.toBase58())
         .set('x-message', message)
-        .set('x-timestamp', Date.now().toString())
-        .set('x-payment-signature', signatureBase64)
+        .set('x-timestamp', timestamp.toString())
+        .set('x-wallet-signature', signatureBase64) // Use wallet signature
         .expect(200);
 
       expect(response.body).toHaveProperty('requestedBy', wallet.toBase58());
@@ -113,7 +115,7 @@ describe('Authentication Middleware', () => {
         .set('x-wallet-address', wallet.toBase58())
         .set('x-message', message)
         .set('x-timestamp', futureTimestamp.toString())
-        .set('x-payment-signature', signatureBase64)
+        .set('x-wallet-signature', signatureBase64) // Use wallet signature
         .expect(200);
 
       expect(response.body).toHaveProperty('requestedBy', wallet.toBase58());
